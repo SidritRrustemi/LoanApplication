@@ -49,8 +49,7 @@ public class ProfileController {
     }
 
     @PutMapping("/profile/update")
-    public ResponseEntity<?> updateProfile(@RequestBody User updatedUser,
-                                           HttpServletRequest request) {
+    public ResponseEntity<?> updateProfile(@RequestBody User updatedUser, HttpServletRequest request) {
         String token = extractToken(request);
         if (token == null) return ResponseEntity.status(401).body("Unauthorized");
 
@@ -58,17 +57,9 @@ public class ProfileController {
         User user = userService.findByUsername(username);
         if (user == null) return ResponseEntity.status(404).body("User not found");
 
-        user.setFirstName(updatedUser.getFirstName());
-        user.setLastName(updatedUser.getLastName());
-        user.setEmail(updatedUser.getEmail());
-
-        // Only update password if explicitly passed and not empty (optional)
-        if (updatedUser.getPassword() != null && !updatedUser.getPassword().isBlank()) {
-            user.setPassword(updatedUser.getPassword());
-        }
-
-        User saved = userService.save(user);
-        return ResponseEntity.ok(saved);
+        // Delegate the logic to service
+        User savedUser = userService.updateProfile(user, updatedUser);
+        return ResponseEntity.ok(savedUser);
     }
 
     private String extractToken(HttpServletRequest request) {

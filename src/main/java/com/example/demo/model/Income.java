@@ -1,5 +1,6 @@
 package com.example.demo.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -21,6 +22,7 @@ public class Income {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "loan_id")
+    @JsonIgnore
     private LoanApplication loanApplication;
 
 }
