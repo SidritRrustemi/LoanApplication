@@ -10,6 +10,7 @@ import java.util.List;
 @Entity
 @Table(name = "users")
 @Data
+@ToString(exclude = "loanApplications")
 public class User {
 
     @Id

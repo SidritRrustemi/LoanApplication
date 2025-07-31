@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.CreateLoanApplicationDTO;
+import com.example.demo.dto.LoanApplicationDTO;
 import com.example.demo.mapper.LoanMapper;
 import com.example.demo.model.LoanApplication;
 import com.example.demo.model.User;
@@ -12,6 +13,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -55,9 +57,13 @@ public class ClientController {
 
         User user = userService.findByUsername(username);
         List<LoanApplication> loans = loanService.getLoansByUser(user);
-        return ResponseEntity.ok(loans.stream()
+
+        List<LoanApplicationDTO> sortedLoanDTOs = loans.stream()
+                .sorted(Comparator.comparing(LoanApplication::getId).reversed())
                 .map(LoanMapper::toDTO)
-                .collect(Collectors.toList()));
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(sortedLoanDTOs);
     }
 
     @GetMapping("/loans/{id}")

@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Comparator;
 import java.util.stream.Collectors;
 
 @RestController
@@ -31,6 +32,7 @@ public class BankEmployeeController {
 
         return ResponseEntity.ok(
                 loanService.getAllLoans().stream()
+                        .sorted(Comparator.comparing(LoanApplication::getId).reversed())
                         .map(LoanMapper::toDTO)
                         .collect(Collectors.toList()));
     }

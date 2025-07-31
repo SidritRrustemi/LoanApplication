@@ -18,6 +18,7 @@ public class LoanMapper {
         dto.setId(loan.getId());
         dto.setFirstName(loan.getUser().getFirstName());
         dto.setLastName(loan.getUser().getLastName());
+        dto.setRole(loan.getUser().getRole());
         dto.setFatherName(loan.getFatherName());
         dto.setEmail(loan.getUser().getEmail());
         dto.setPhoneNumber(loan.getPhoneNumber());

@@ -42,10 +42,10 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterUserDTO dto) {
         if (userService.usernameExists(dto.getUsername())) {
-            return ResponseEntity.badRequest().body("Username already taken");
+            return ResponseEntity.badRequest().body("Emri i përdoruesit është i zënë");
         }
         if (userService.emailExists(dto.getEmail())) {
-            return ResponseEntity.badRequest().body("An account with this email address already exists!");
+            return ResponseEntity.badRequest().body("Ekziston një llogari me këtë adresë emaili!");
         }
         User user = UserMapper.toEntity(dto);
         user.setLoginTime(LocalDateTime.now());
@@ -64,7 +64,7 @@ public class AuthController {
                     "role", user.getRole()
             ));
         } else {
-            return ResponseEntity.status(401).body("Invalid username or password");
+            return ResponseEntity.status(401).body("Emri i përdoruesit ose fjalëkalimi është i pavlefshëm");
         }
     }
 
@@ -79,7 +79,7 @@ public class AuthController {
                     "role", user.getRole()
             ));
         } else {
-            return ResponseEntity.status(401).body("Invalid username or password");
+            return ResponseEntity.status(401).body("Emri i përdoruesit ose fjalëkalimi është i pavlefshëm");
         }
     }
 
@@ -88,18 +88,24 @@ public class AuthController {
         String email = request.get("email");
         System.out.println("Received email: " + email);
         if (!rateLimiter.isAllowed(email)) {
-            return ResponseEntity.status(429).body("Too many requests. Try again in 15 seconds.");
+            return ResponseEntity.status(429).body("Shumë kërkesa. Provo përsëri pas 15 sekondash.");
         }
 
         User user = userService.findByEmail(email);
-        if (user == null) return ResponseEntity.status(404).body("Email not found");
+        if (user == null) return ResponseEntity.status(404).body("Email-i nuk u gjet");
 
         String code = String.format("%06d", new Random().nextInt(999999));
         passwordResetService.createResetCode(user, code, LocalDateTime.now().plusMinutes(10));
 
-        emailService.sendEmail(email, "Your Reset Code", "Your password reset code is: " + code);
-
-        return ResponseEntity.ok("Reset code sent to your email.");
+        String subject = "BKT | Portali i Aplikimit për Kredi - Ndrysho Fjalëkalimin";
+        String body = "Përshëndetje,\n\n"
+                + "Keni kërkuar të ndryshoni fjalëkalimin tuaj. Përdorni kodin e mëposhtëm për të vazhduar procesin:\n\n"
+                + "Kodi 6-shifror: " + code + "\n\n"
+                + "Ky kod është i vlefshëm për një kohë të kufizuar. Nëse nuk e keni kërkuar këtë veprim, ju lutemi injorojeni këtë email.\n\n"
+                + "Faleminderit,\n"
+                + "Ekipi i BKT";
+        emailService.sendEmail(email, subject, body);
+        return ResponseEntity.ok("Kodi 6-shifror u dërgua në adresën tuaj të email-it.");
     }
 
     @PostMapping("/verify-reset-code")
@@ -107,10 +113,10 @@ public class AuthController {
         PasswordResetCode resetCode = passwordResetService.getValidCode(request.getEmail(), request.getCode());
 
         if (resetCode == null) {
-            return ResponseEntity.badRequest().body("Invalid or expired code.");
+            return ResponseEntity.badRequest().body("Kodi është i pavlefshëm ose ka skaduar.");
         }
 
-        return ResponseEntity.ok("Code verified successfully.");
+        return ResponseEntity.ok("Kodi i rivendosjes u dërgua në email-in tuaj.");
     }
 
     @PostMapping("/reset-password")
@@ -118,7 +124,7 @@ public class AuthController {
         PasswordResetCode resetCode = passwordResetService.getValidCode(request.getEmail(), request.getCode());
 
         if (resetCode == null) {
-            return ResponseEntity.badRequest().body("Invalid or expired code.");
+            return ResponseEntity.badRequest().body("Kodi është i pavlefshëm ose ka skaduar.");
         }
 
         User user = resetCode.getUser();
@@ -127,6 +133,6 @@ public class AuthController {
 
         passwordResetService.markCodeAsUsed(resetCode);
 
-        return ResponseEntity.ok("Password reset successfully.");
+        return ResponseEntity.ok("Fjalëkalimi u ndryshua me sukses.");
     }
 }
