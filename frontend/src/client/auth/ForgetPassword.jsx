@@ -117,7 +117,7 @@ export default function ForgotPassword() {
         email: email.trim().toLowerCase(),
       });
       setMessage("Kodi u ridërgua me sukses.");
-      setCountdown(60);
+      setCountdown(15);
     } catch (error) {
       setMessage(error.response?.data || "Kodi nuk u ridërgua dot.");
     } finally {

@@ -1,16 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, User, Lock, Mail, UserPlus, ArrowLeft } from 'lucide-react';
+import { CreditCard, User, Lock, Mail, UserPlus, ArrowLeft, Moon, Sun } from 'lucide-react';
 import api from '../api/axios';
+import { toast } from 'react-toastify';
 
 function Register() {
     const [formData, setFormData] = useState({
-        name: '',
-        surname: '',
+        firstName: '',
+        lastName: '',
         email: '',
         username: '',
         password: ''
     });
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+            const saved = localStorage.getItem("isDarkMode");
+            return saved !== null ? saved === "true" : false;
+        });
 
     const navigate = useNavigate();
 
@@ -18,37 +23,80 @@ function Register() {
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
+    const toggleDarkMode = () => {
+        const newDarkMode = !isDarkMode;
+        setIsDarkMode(newDarkMode);
+        localStorage.setItem("isDarkMode", newDarkMode.toString());
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
         try {
             await api.post('/auth/register', formData);
-            alert('Registration successful! You can now login.');
+            toast.success('Regjistrimi u krye me sukses! Tani mund të hyni.');
             navigate('/');
         } catch (error) {
-            alert('Registration failed. Please try again.');
+            if(error.response?.status === 400){
+                toast.error(error.response.data);
+            }
+            toast.error("Ndodhi një gabim. Ju lutemi provoni përsëri më vonë.")
         }
     };
 
+    useEffect(() => {
+        // Apply background to body
+        const bgImage = isDarkMode ? 'images/bkt-new.png' : 'images/bkt-new.png';
+        const bgOverlay = isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.1)';
+
+        document.body.style.background = `linear-gradient(${bgOverlay}, ${bgOverlay}), url("${bgImage}") center/cover no-repeat fixed`;
+        document.body.style.margin = '0';
+        document.body.style.padding = '0';
+        document.body.style.minHeight = '100vh';
+
+        // Also apply to html element for better coverage
+        document.documentElement.style.background = `linear-gradient(${bgOverlay}, ${bgOverlay}), url("${bgImage}") center/cover no-repeat fixed`;
+        document.documentElement.style.minHeight = '100vh';
+    }, [isDarkMode]);
+
     const containerStyle = {
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%)',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '2rem'
+        position: 'relative',
+    };
+
+    const darkModeToggleStyle = {
+        position: 'absolute',
+        top: '1.5rem',
+        right: '1.5rem',
+        padding: '0.5rem',
+        background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.9)',
+        backdropFilter: 'blur(8px)',
+        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.5)',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease',
+        color: isDarkMode ? '#ffffff' : '#374151',
+        boxShadow: isDarkMode
+            ? '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            : '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
     };
 
     const registerCardStyle = {
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(12px)',
+        backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.8)' : 'rgba(255, 255, 255, 0.6)',
+        backdropFilter: 'blur(6px)',
         borderRadius: '16px',
-        border: '1px solid rgba(255, 255, 255, 0.5)',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.5)',
+        boxShadow: isDarkMode
+            ? '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)'
+            : '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
         padding: '2.5rem',
         width: '100%',
-        maxWidth: '450px'
+        maxWidth: '450px',
+        transition: 'all 0.3s ease'
     };
 
     const logoContainerStyle = {
@@ -59,29 +107,30 @@ function Register() {
     };
 
     const logoStyle = {
-        width: '64px',
-        height: '64px',
-        background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
-        borderRadius: '16px',
+        width: '100px',
+        height: '60px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: '1rem'
+        marginBottom: '2rem',
+        transition: 'all 0.3s ease'
     };
 
     const titleStyle = {
         fontSize: '1.875rem',
         fontWeight: 'bold',
-        color: '#111827',
+        color: isDarkMode ? '#f9fafb' : '#111827',
         margin: '0 0 0.5rem 0',
-        textAlign: 'center'
+        textAlign: 'center',
+        transition: 'color 0.3s ease'
     };
 
     const subtitleStyle = {
         fontSize: '0.875rem',
-        color: '#6b7280',
+        color: isDarkMode ? '#9ca3af' : '#6b7280',
         margin: 0,
-        textAlign: 'center'
+        textAlign: 'center',
+        transition: 'color 0.3s ease'
     };
 
     const formStyle = {
@@ -108,19 +157,21 @@ function Register() {
     const inputStyle = {
         width: '100%',
         padding: '0.75rem 1rem 0.75rem 3rem',
-        border: '1px solid #d1d5db',
+        border: isDarkMode ? '1px solid #374151' : '1px solid #d1d5db',
         borderRadius: '8px',
         fontSize: '0.875rem',
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(4px)',
+        backgroundColor: isDarkMode ? 'rgba(55, 65, 81, 0.5)' : 'rgba(255, 255, 255, 0.7)',
+        color: isDarkMode ? '#f9fafb' : '#111827',
         transition: 'all 0.2s',
         outline: 'none',
         boxSizing: 'border-box'
     };
 
     const inputFocusStyle = {
-        borderColor: '#2563eb',
-        boxShadow: '0 0 0 3px rgba(37, 99, 235, 0.1)'
+        borderColor: isDarkMode ? '#3b82f6' : '#2563eb',
+        boxShadow: isDarkMode
+            ? '0 0 0 3px rgba(59, 130, 246, 0.1)'
+            : '0 0 0 3px rgba(37, 99, 235, 0.1)'
     };
 
     const iconStyle = {
@@ -128,7 +179,7 @@ function Register() {
         left: '0.75rem',
         top: '50%',
         transform: 'translateY(-50%)',
-        color: '#6b7280',
+        color: isDarkMode ? '#9ca3af' : '#6b7280',
         pointerEvents: 'none'
     };
 
@@ -138,7 +189,9 @@ function Register() {
         justifyContent: 'center',
         gap: '0.5rem',
         padding: '0.75rem 1.5rem',
-        background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+        background: isDarkMode
+            ? 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)'
+            : 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
         color: 'white',
         border: 'none',
         borderRadius: '8px',
@@ -155,41 +208,49 @@ function Register() {
         gap: '0.5rem',
         padding: '0.5rem 1rem',
         backgroundColor: 'transparent',
-        color: '#6b7280',
-        border: '1px solid #d1d5db',
+        color: isDarkMode ? '#9ca3af' : '#6b7280',
+        border: isDarkMode ? '1px solid #374151' : '1px solid #d1d5db',
         borderRadius: '8px',
         fontSize: '0.875rem',
         cursor: 'pointer',
         transition: 'all 0.2s',
         textDecoration: 'none',
-        marginBottom: '1.5rem'
+        marginBottom: '1.5rem',
+        width: '120px'
     };
 
     return (
         <div style={containerStyle}>
+            <button
+                onClick={toggleDarkMode}
+                style={darkModeToggleStyle}
+            >
+                {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+
             <div style={registerCardStyle}>
                 <a
                     href="/"
                     style={backButtonStyle}
                     onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = '#f9fafb';
-                        e.target.style.color = '#374151';
+                        e.target.style.backgroundColor = isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)';
+                        e.target.style.color = isDarkMode ? '#f3f4f6' : '#374151';
                     }}
                     onMouseLeave={(e) => {
                         e.target.style.backgroundColor = 'transparent';
-                        e.target.style.color = '#6b7280';
+                        e.target.style.color = isDarkMode ? '#9ca3af' : '#6b7280';
                     }}
                 >
                     <ArrowLeft size={16} />
-                    <span>Back to Login</span>
+                    <span>Kthehu te hyrja</span>
                 </a>
 
                 <div style={logoContainerStyle}>
                     <div style={logoStyle}>
-                        <CreditCard size={32} color="white" />
+                      <img src="images/download.png" alt="Credit Card" style={{ width: 320, height: 100 }} />
                     </div>
-                    <h2 style={titleStyle}>Create Account</h2>
-                    <p style={subtitleStyle}>Join our loan management platform</p>
+                    <h2 style={titleStyle}>Krijo llogari</h2>
+                    <p style={subtitleStyle}>Bashkohuni me platformën tonë të menaxhimit të kredive!</p>
                 </div>
 
                 <form onSubmit={handleSubmit} style={formStyle}>
@@ -199,14 +260,17 @@ function Register() {
                                 <User size={16} />
                             </div>
                             <input
-                                name="name"
-                                placeholder="First Name"
-                                value={formData.name}
+                                name="firstName"
+                                placeholder="Emri"
+                                value={formData.firstName}
                                 onChange={handleChange}
                                 required
                                 style={inputStyle}
                                 onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
-                                onBlur={(e) => Object.assign(e.target.style, { borderColor: '#d1d5db', boxShadow: 'none' })}
+                                onBlur={(e) => Object.assign(e.target.style, {
+                                    borderColor: isDarkMode ? '#374151' : '#d1d5db',
+                                    boxShadow: 'none'
+                                })}
                             />
                         </div>
 
@@ -215,14 +279,17 @@ function Register() {
                                 <User size={16} />
                             </div>
                             <input
-                                name="surname"
-                                placeholder="Last Name"
-                                value={formData.surname}
+                                name="lastName"
+                                placeholder="Mbiemri"
+                                value={formData.lastName}
                                 onChange={handleChange}
                                 required
                                 style={inputStyle}
                                 onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
-                                onBlur={(e) => Object.assign(e.target.style, { borderColor: '#d1d5db', boxShadow: 'none' })}
+                                onBlur={(e) => Object.assign(e.target.style, {
+                                    borderColor: isDarkMode ? '#374151' : '#d1d5db',
+                                    boxShadow: 'none'
+                                })}
                             />
                         </div>
                     </div>
@@ -234,13 +301,16 @@ function Register() {
                         <input
                             name="email"
                             type="email"
-                            placeholder="Email Address"
+                            placeholder="Adresa e email-it"
                             value={formData.email}
                             onChange={handleChange}
                             required
                             style={inputStyle}
                             onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
-                            onBlur={(e) => Object.assign(e.target.style, { borderColor: '#d1d5db', boxShadow: 'none' })}
+                            onBlur={(e) => Object.assign(e.target.style, {
+                                borderColor: isDarkMode ? '#374151' : '#d1d5db',
+                                boxShadow: 'none'
+                            })}
                         />
                     </div>
 
@@ -250,13 +320,16 @@ function Register() {
                         </div>
                         <input
                             name="username"
-                            placeholder="Username"
+                            placeholder="Emri i përdoruesit"
                             value={formData.username}
                             onChange={handleChange}
                             required
                             style={inputStyle}
                             onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
-                            onBlur={(e) => Object.assign(e.target.style, { borderColor: '#d1d5db', boxShadow: 'none' })}
+                            onBlur={(e) => Object.assign(e.target.style, {
+                                borderColor: isDarkMode ? '#374151' : '#d1d5db',
+                                boxShadow: 'none'
+                            })}
                         />
                     </div>
 
@@ -267,13 +340,16 @@ function Register() {
                         <input
                             name="password"
                             type="password"
-                            placeholder="Password"
+                            placeholder="Fjalëkalimi"
                             value={formData.password}
                             onChange={handleChange}
                             required
                             style={inputStyle}
                             onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
-                            onBlur={(e) => Object.assign(e.target.style, { borderColor: '#d1d5db', boxShadow: 'none' })}
+                            onBlur={(e) => Object.assign(e.target.style, {
+                                borderColor: isDarkMode ? '#374151' : '#d1d5db',
+                                boxShadow: 'none'
+                            })}
                         />
                     </div>
 
@@ -284,7 +360,7 @@ function Register() {
                         onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
                     >
                         <UserPlus size={16} />
-                        <span>Create Account</span>
+                        <span>Krijo llogarinë</span>
                     </button>
                 </form>
             </div>

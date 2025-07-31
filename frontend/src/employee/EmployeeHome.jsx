@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import api from './api/axios';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Eye, Check, X, Clock, BarChart3, TrendingUp, AlertCircle, DollarSign, CreditCard, FileText, User} from 'lucide-react';
+import { LogOut, Eye, Check, X, Clock, BarChart3, TrendingUp, AlertCircle, DollarSign, CreditCard, FileText, User, Sun, Moon} from 'lucide-react';
+import { toast } from 'react-toastify';
 
 function EmployeeHome() {
     const [applications, setApplications] = useState([]);
@@ -15,8 +16,26 @@ function EmployeeHome() {
     const [user, setUser] = useState({ name: '', loginTime: '' });
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [applicationsPerPage] = useState(10);
+    const [applicationsPerPage] = useState(5);
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const saved = localStorage.getItem('isDarkMode');
+        return saved ? JSON.parse(saved) : false;
+    });
     const navigate = useNavigate();
+
+    const toggleDarkMode = () => {
+        const newMode = !isDarkMode;
+        setIsDarkMode(newMode);
+        localStorage.setItem('isDarkMode', JSON.stringify(newMode));
+    };
+
+    useEffect(() => {
+       const error = sessionStorage.getItem('errorMessage');
+       if (error) {
+          toast.error(error);
+          sessionStorage.removeItem('errorMessage');
+       }
+    }, []);
 
     useEffect(() => {
         fetchProfileAndLoans();
@@ -30,12 +49,16 @@ function EmployeeHome() {
 
     const fetchProfileAndLoans = async () => {
         try {
-            /*setLoading(true);*/
             const profileRes = await api.get('/client/profile');
             const { user: userInfo, lastLoginTime } = profileRes.data;
-
+            const backendRole = userInfo.role || '';
+            console.log(backendRole);
+            if (backendRole != 'bank_employee') {
+               navigate(-1, { state: { errorMessage: "Ju nuk keni një rol të tillë." } });
+               return;
+            }
             setUser({
-                name: userInfo.username || 'Employee',
+                name: userInfo.username || 'Punonjës',
                 loginTime: lastLoginTime
                     ? new Date(lastLoginTime).toLocaleString()
                     : '-'
@@ -66,9 +89,8 @@ function EmployeeHome() {
 
             setSummaryStats(stats);
         } catch (err) {
-            console.error('Error loading data:', err);
             if (err.response?.status === 401 || err.response?.status === 403) {
-                alert('Session expired or unauthorized. Please log in again.');
+                toast.error("Sesioni ka skaduar ose nuk jeni i autorizuar. Ju lutemi hyni përsëri.");
                 localStorage.clear();
                 navigate('/');
             }
@@ -104,9 +126,8 @@ function EmployeeHome() {
 
             setSummaryStats(stats);
         } catch (err) {
-            console.error('Error fetching applications:', err);
             if (err.response?.status === 403 || err.response?.status === 401) {
-                alert('Session expired or unauthorized. Please log in again.');
+                toast.error("Sesioni ka skaduar ose nuk jeni i autorizuar. Ju lutemi hyni përsëri.");
                 localStorage.clear();
                 navigate('/');
             }
@@ -117,10 +138,9 @@ function EmployeeHome() {
         try {
             await api.post(`/employee/loans/${id}/approve`);
             await fetchApplications(); // Refresh data
-            alert('Loan approved successfully!');
+            toast.success("Aplikimi për kredi u aprovua me sukses!");
         } catch (err) {
-            console.error('Error approving loan:', err);
-            alert('Could not approve loan. Please try again.');
+            toast.error("Aplikimi për kredi nuk mund të aprovohej. Ju lutemi provoni përsëri.");
         }
     };
 
@@ -128,10 +148,9 @@ function EmployeeHome() {
         try {
             await api.post(`/employee/loans/${id}/reject`);
             await fetchApplications(); // Refresh data
-            alert('Loan rejected successfully!');
+            toast.success("Aplikimi për kredi u refuzua me sukses!");
         } catch (err) {
-            console.error('Error rejecting loan:', err);
-            alert('Could not reject loan. Please try again.');
+            toast.error("Aplikimi për kredi nuk mund të refuzohej. Ju lutemi provoni përsëri.");
         }
     };
 
@@ -139,10 +158,9 @@ function EmployeeHome() {
         try {
             await api.post(`/employee/loans/${id}/evaluate`);
             await fetchApplications(); // Refresh data
-            alert('Loan set to evaluation!');
+            toast.success("Kërkesa për kredi u vendos për vlerësim.");
         } catch (err) {
-            console.error('Error starting evaluation:', err);
-            alert('Could not start evaluation. Please try again.');
+            toast.error("Aplikimi për kredi nuk mund të fillonte vlerësimin. Ju lutemi provoni përsëri.");
         }
     };
 
@@ -153,7 +171,6 @@ function EmployeeHome() {
     const handleLogout = async () => {
         try {
             if (user.loginTime && user.loginTime !== '-') {
-                // Parse the localized string back to Date, then to ISO string
                 const parsedDate = new Date(localStorage.getItem("loginTime"));
                 const isoString = parsedDate.toISOString();
 
@@ -193,85 +210,129 @@ function EmployeeHome() {
 
     const containerStyle = {
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+        background: isDarkMode
+            ? 'linear-gradient(135deg, #1f2937 0%, #111827 100%)'
+            : 'linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%)',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        color: isDarkMode ? '#f9fafb' : '#111827',
+        transition: 'all 0.3s ease'
+    };
+
+    const darkModeToggleStyle = {
+        position: 'fixed',
+        top: '1rem',
+        right: '1rem',
+        padding: '0.5rem',
+        background: isDarkMode ? 'rgba(55, 65, 81, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+        backdropFilter: 'blur(8px)',
+        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.1)',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease',
+        color: isDarkMode ? '#f9fafb' : '#374151',
+        boxShadow: isDarkMode
+            ? '0 4px 6px -1px rgba(0, 0, 0, 0.3)'
+            : '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+        zIndex: 1000
     };
 
     const headerStyle = {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.9)' : 'rgba(255, 255, 255, 0.9)',
         backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid rgba(203, 213, 225, 0.3)',
+        borderBottom: isDarkMode ? '1px solid rgba(55, 65, 81, 0.5)' : '1px solid rgba(0, 0, 0, 0.1)',
         position: 'sticky',
         top: 0,
-        zIndex: 10
+        zIndex: 100,
+        transition: 'all 0.3s ease'
     };
 
     const headerContentStyle = {
         maxWidth: '1280px',
         margin: '0 auto',
-        padding: '0 2rem',
+        padding: '1rem 1rem 1rem 1rem',
         display: 'flex',
+        flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingTop: '1.5rem',
-        paddingBottom: '1.5rem'
+        gap: '1rem',
+        flexWrap: 'wrap'
+    };
+
+    const logoSectionStyle = {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1rem',
+        flex: '1',
+        minWidth: '0'
     };
 
     const logoStyle = {
-        width: '48px',
-        height: '48px',
-        background: 'linear-gradient(135deg, #1e40af 0%, #3730a3 100%)',
-        borderRadius: '12px',
+        flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: '1rem'
+        justifyContent: 'center'
+    };
+
+    const welcomeSectionStyle = {
+        flex: '1',
+        minWidth: '0'
     };
 
     const titleStyle = {
-        fontSize: '1.5rem',
+        fontSize: '1.25rem',
         fontWeight: 'bold',
-        color: '#1e293b',
-        margin: 0
+        color: isDarkMode ? '#f9fafb' : '#111827',
+        margin: 0,
+        transition: 'color 0.3s ease',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
     };
 
     const subtitleStyle = {
         fontSize: '0.875rem',
-        color: '#64748b',
-        margin: 0
+        color: isDarkMode ? '#9ca3af' : '#6b7280',
+        margin: 0,
+        transition: 'color 0.3s ease',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
     };
 
     const navStyle = {
         display: 'flex',
         alignItems: 'center',
-        gap: '1rem'
+        gap: '0.75rem',
+        flexShrink: 0,
+        flexWrap: 'wrap'
     };
 
     const navButtonStyle = {
         display: 'flex',
         alignItems: 'center',
         gap: '0.5rem',
-        padding: '0.5rem 1rem',
-        backgroundColor: 'white',
-        border: '1px solid #cbd5e1',
-        borderRadius: '8px',
+        padding: '0.5rem 0.75rem',
+        backgroundColor: isDarkMode ? 'rgba(55, 65, 81, 0.8)' : 'white',
+        border: isDarkMode ? '1px solid rgba(75, 85, 99, 0.5)' : '1px solid #d1d5db',
+        borderRadius: '6px',
         cursor: 'pointer',
         transition: 'all 0.2s',
         fontSize: '0.875rem',
         textDecoration: 'none',
-        color: '#475569'
+        color: isDarkMode ? '#f9fafb' : '#374151',
+        whiteSpace: 'nowrap'
     };
 
     const logoutButtonStyle = {
         ...navButtonStyle,
-        color: '#dc2626',
-        borderColor: '#fca5a5'
+        color: isDarkMode ? '#f87171' : '#dc2626',
+        borderColor: isDarkMode ? 'rgba(248, 113, 113, 0.3)' : '#fca5a5'
     };
 
     const mainStyle = {
         maxWidth: '1280px',
         margin: '0 auto',
-        padding: '2rem'
+        padding: '2rem 1rem'
     };
 
     const statsGridStyle = {
@@ -282,28 +343,34 @@ function EmployeeHome() {
     };
 
     const statCardStyle = {
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.7)' : 'rgba(255, 255, 255, 0.7)',
         backdropFilter: 'blur(8px)',
         borderRadius: '16px',
         padding: '1.5rem',
-        border: '1px solid rgba(255, 255, 255, 0.6)',
-        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-        transition: 'all 0.3s'
+        border: isDarkMode ? '1px solid rgba(55, 65, 81, 0.5)' : '1px solid rgba(255, 255, 255, 0.5)',
+        boxShadow: isDarkMode
+            ? '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+            : '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+        transition: 'all 0.3s',
+        cursor: 'pointer'
     };
 
     const sectionStyle = {
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.7)' : 'rgba(255, 255, 255, 0.7)',
         backdropFilter: 'blur(8px)',
         borderRadius: '16px',
-        border: '1px solid rgba(255, 255, 255, 0.6)',
-        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-        overflow: 'hidden'
+        border: isDarkMode ? '1px solid rgba(55, 65, 81, 0.5)' : '1px solid rgba(255, 255, 255, 0.5)',
+        boxShadow: isDarkMode
+            ? '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+            : '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+        overflow: 'hidden',
+        transition: 'all 0.3s ease'
     };
 
     const sectionHeaderStyle = {
         padding: '1.5rem',
-        borderBottom: '1px solid rgba(226, 232, 240, 0.5)',
-        backgroundColor: 'rgba(248, 250, 252, 0.5)',
+        borderBottom: isDarkMode ? '1px solid rgba(55, 65, 81, 0.5)' : '1px solid rgba(229, 231, 235, 0.5)',
+        backgroundColor: isDarkMode ? 'rgba(17, 24, 39, 0.5)' : 'rgba(249, 250, 251, 0.5)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center'
@@ -319,16 +386,17 @@ function EmployeeHome() {
         textAlign: 'left',
         fontSize: '0.75rem',
         fontWeight: '600',
-        color: '#64748b',
+        color: isDarkMode ? '#9ca3af' : '#64748b',
         textTransform: 'uppercase',
         letterSpacing: '0.05em',
-        backgroundColor: 'rgba(248, 250, 252, 0.7)'
+        backgroundColor: isDarkMode ? 'rgba(17, 24, 39, 0.7)' : 'rgba(248, 250, 252, 0.7)'
     };
 
     const tdStyle = {
         padding: '1rem 1.5rem',
         fontSize: '0.875rem',
-        borderBottom: '1px solid rgba(226, 232, 240, 0.5)'
+        borderBottom: isDarkMode ? '1px solid rgba(55, 65, 81, 0.5)' : '1px solid rgba(226, 232, 240, 0.5)',
+        color: isDarkMode ? '#f9fafb' : '#1e293b'
     };
 
     const actionButtonStyle = {
@@ -378,8 +446,8 @@ function EmployeeHome() {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '1rem 1.5rem',
-        backgroundColor: 'rgba(248, 250, 252, 0.5)',
-        borderTop: '1px solid rgba(226, 232, 240, 0.5)'
+        backgroundColor: isDarkMode ? 'rgba(17, 24, 39, 0.5)' : 'rgba(248, 250, 252, 0.5)',
+        borderTop: isDarkMode ? '1px solid rgba(55, 65, 81, 0.5)' : '1px solid rgba(226, 232, 240, 0.5)'
     };
 
     const paginationButtonStyle = {
@@ -387,13 +455,13 @@ function EmployeeHome() {
         alignItems: 'center',
         gap: '0.5rem',
         padding: '0.5rem 1rem',
-        backgroundColor: 'white',
-        border: '1px solid #cbd5e1',
+        backgroundColor: isDarkMode ? 'rgba(55, 65, 81, 0.8)' : 'white',
+        border: isDarkMode ? '1px solid rgba(75, 85, 99, 0.5)' : '1px solid #cbd5e1',
         borderRadius: '8px',
         cursor: 'pointer',
         transition: 'all 0.2s',
         fontSize: '0.875rem',
-        color: '#475569'
+        color: isDarkMode ? '#f9fafb' : '#475569'
     };
 
     const paginationButtonDisabledStyle = {
@@ -405,12 +473,16 @@ function EmployeeHome() {
     const footerStyle = {
         marginTop: '2rem',
         paddingTop: '1.5rem',
-        borderTop: '1px solid rgba(226, 232, 240, 0.4)',
+        borderTop: isDarkMode ? '1px solid rgba(55, 65, 81, 0.3)' : '1px solid rgba(255, 255, 255, 0.3)',
         display: 'flex',
+        flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         fontSize: '0.875rem',
-        color: '#64748b'
+        color: isDarkMode ? '#9ca3af' : '#6b7280',
+        transition: 'all 0.3s ease',
+        gap: '1rem',
+        flexWrap: 'wrap'
     };
 
     const emptyStateStyle = {
@@ -418,405 +490,619 @@ function EmployeeHome() {
         textAlign: 'center'
     };
 
-    const loadingStyle = {
+    // Loading styles
+    const loadingOverlayStyle = {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundColor: isDarkMode ? 'rgba(17, 24, 39, 0.9)' : 'rgba(248, 250, 252, 0.9)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        backdropFilter: 'blur(4px)',
+        transition: 'all 0.3s ease'
+    };
+
+    const loadingContentStyle = {
+        backgroundColor: isDarkMode ? 'rgba(31, 41, 55, 0.9)' : 'white',
+        padding: '2rem',
+        borderRadius: '16px',
+        boxShadow: isDarkMode
+            ? '0 20px 25px -5px rgba(0, 0, 0, 0.3)'
+            : '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+        textAlign: 'center',
+        border: isDarkMode ? '1px solid rgba(55, 65, 81, 0.5)' : '1px solid rgba(255, 255, 255, 0.5)',
+        transition: 'all 0.3s ease'
+    };
+
+    const spinnerStyle = {
         width: '48px',
         height: '48px',
-        border: '4px solid #e2e8f0',
-        borderTop: '4px solid #1e40af',
+        border: isDarkMode ? '4px solid #374151' : '4px solid #e5e7eb',
+        borderTop: isDarkMode ? '4px solid #3b82f6' : '4px solid #2563eb',
         borderRadius: '50%',
         animation: 'spin 1s linear infinite',
-        margin: '0 auto 1rem'
+        margin: '0 auto 1rem auto'
     };
+
+    const keyframes = `
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            .mobile-nav {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+
+            .mobile-nav button {
+                justify-content: center;
+                padding: 0.75rem 1rem;
+            }
+
+            .mobile-header-content {
+                flex-direction: column;
+                gap: 1rem;
+                align-items: stretch;
+            }
+
+            .mobile-logo-section {
+                justify-content: center;
+                text-align: center;
+            }
+
+            .mobile-logo-section .logo-image {
+                width: 200px !important;
+                height: 55px !important;
+            }
+
+            .mobile-title {
+                font-size: 1.125rem !important;
+                text-align: center;
+            }
+
+            .mobile-subtitle {
+                text-align: center;
+            }
+
+            .mobile-table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .mobile-footer {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .mobile-stats-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            .mobile-nav button span {
+                display: none;
+            }
+
+            .mobile-main-padding {
+                padding: 1rem 0.5rem !important;
+            }
+        }
+    `;
 
     if (loading) {
         return (
-            <div style={{ ...containerStyle, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ textAlign: 'center' }}>
-                    <div style={loadingStyle}></div>
-                    <div style={{ fontSize: '1.5rem', color: '#64748b' }}>Loading...</div>
+            <>
+                <style>{keyframes}</style>
+                <div style={loadingOverlayStyle}>
+                    <div style={loadingContentStyle}>
+                        <div style={spinnerStyle}></div>
+                        <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: isDarkMode ? '#f9fafb' : '#111827', margin: '0 0 0.5rem 0' }}>
+                            Duke ngarkuar panelin e punonjësit
+                        </h3>
+                        <p style={{ color: isDarkMode ? '#9ca3af' : '#6b7280', margin: 0 }}>
+                            Duke marrë aplikimet për kredi...
+                        </p>
+                    </div>
                 </div>
-                <style>{`
-                    @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                    }
-                `}</style>
-            </div>
+            </>
         );
     }
 
     return (
-        <div style={containerStyle}>
-            <style>{`
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `}</style>
+        <>
+            <style>{keyframes}</style>
+            <div style={containerStyle}>
+                {/* Dark Mode Toggle */}
+                <button
+                    onClick={toggleDarkMode}
+                    style={darkModeToggleStyle}
+                >
+                    {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+                </button>
 
-            {/* Header */}
-            <header style={headerStyle}>
-                <div style={headerContentStyle}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <div style={logoStyle}>
-                            <BarChart3 size={24} color="white" />
-                        </div>
-                        <div>
-                            <h2 style={titleStyle}>Welcome, {user.name}</h2>
-                            <p style={subtitleStyle}>Bank Employee Dashboard</p>
-                        </div>
-                    </div>
-
-                    <nav style={navStyle}>
-                        <button
-                            onClick={() => navigate('/employee/reports')}
-                            style={navButtonStyle}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                        >
-                            <FileText size={16} />
-                            <span>Reports</span>
-                        </button>
-
-                        <button
-                            onClick={() => navigate('/employee/profile')}
-                            style={navButtonStyle}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                        >
-                            <User size={16} />
-                            <span>Profile</span>
-                        </button>
-
-                        <button
-                            onClick={handleLogout}
-                            style={logoutButtonStyle}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#fef2f2';
-                                e.currentTarget.style.borderColor = '#f87171';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'white';
-                                e.currentTarget.style.borderColor = '#fca5a5';
-                            }}
-                        >
-                            <LogOut size={16} />
-                            <span>Logout</span>
-                        </button>
-                    </nav>
-                </div>
-            </header>
-
-            <main style={mainStyle}>
-                {/* Summary Statistics */}
-                <div style={statsGridStyle}>
-                    <div
-                        style={statCardStyle}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <p style={{ fontSize: '0.875rem', fontWeight: '500', color: '#64748b', margin: '0 0 0.5rem 0' }}>
-                                    Pending Applications
-                                </p>
-                                <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#7c3aed', margin: 0 }}>
-                                    {summaryStats.pending}
-                                </p>
+                {/* Header */}
+                <header style={headerStyle}>
+                    <div style={headerContentStyle} className="mobile-header-content">
+                        <div style={logoSectionStyle} className="mobile-logo-section">
+                            <div style={logoStyle}>
+                                <img
+                                    src="../images/download.png"
+                                    alt="Logo"
+                                    style={{ width: 265, height: 80 }}
+                                    className="logo-image"
+                                />
                             </div>
-                            <div style={{
-                                width: '48px',
-                                height: '48px',
-                                backgroundColor: '#f3f4f6',
-                                borderRadius: '8px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}>
-                                <Clock size={24} color="#7c3aed" />
+                            <div style={welcomeSectionStyle}>
+                                <h2 style={titleStyle} className="mobile-title">Përshëndetje, {user.name}</h2>
+                                <p style={subtitleStyle} className="mobile-subtitle">Paneli i Punonjësit të Bankës</p>
                             </div>
                         </div>
-                    </div>
 
-                    <div
-                        style={statCardStyle}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <p style={{ fontSize: '0.875rem', fontWeight: '500', color: '#64748b', margin: '0 0 0.5rem 0' }}>
-                                    In Progress
-                                </p>
-                                <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#d97706', margin: 0 }}>
-                                    {summaryStats.inProgress}
-                                </p>
-                            </div>
-                            <div style={{
-                                width: '48px',
-                                height: '48px',
-                                backgroundColor: '#fffbeb',
-                                borderRadius: '8px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}>
-                                <AlertCircle size={24} color="#d97706" />
-                            </div>
+                        {/* Navigation Menu */}
+                        <div style={navStyle} className="mobile-nav">
+                            <button
+                                onClick={() => navigate('/employee/reports')}
+                                style={navButtonStyle}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(75, 85, 99, 0.8)' : '#f9fafb'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(55, 65, 81, 0.8)' : 'white'}
+                            >
+                                <FileText size={16} />
+                                <span>Raporte</span>
+                            </button>
+
+                            <button
+                                onClick={() => navigate('/employee/profile')}
+                                style={navButtonStyle}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(75, 85, 99, 0.8)' : '#f9fafb'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(55, 65, 81, 0.8)' : 'white'}
+                            >
+                                <User size={16} />
+                                <span>Profili</span>
+                            </button>
+
+                            <button
+                                onClick={handleLogout}
+                                style={logoutButtonStyle}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2';
+                                    e.currentTarget.style.borderColor = isDarkMode ? 'rgba(239, 68, 68, 0.5)' : '#f87171';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(55, 65, 81, 0.8)' : 'white';
+                                    e.currentTarget.style.borderColor = isDarkMode ? 'rgba(248, 113, 113, 0.3)' : '#fca5a5';
+                                }}
+                            >
+                                <LogOut size={16} />
+                                <span>Dil</span>
+                            </button>
                         </div>
                     </div>
+                </header>
 
-                    <div
-                        style={statCardStyle}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <p style={{ fontSize: '0.875rem', fontWeight: '500', color: '#64748b', margin: '0 0 0.5rem 0' }}>
-                                    Approved
-                                </p>
-                                <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#059669', margin: 0 }}>
-                                    {summaryStats.approved}
-                                </p>
-                            </div>
-                            <div style={{
-                                width: '48px',
-                                height: '48px',
-                                backgroundColor: '#ecfdf5',
-                                borderRadius: '8px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}>
-                                <Check size={24} color="#059669" />
-                            </div>
-                        </div>
-                    </div>
+               <main style={mainStyle} className="mobile-main-padding">
+                   {/* Summary Statistics */}
+                   <div style={statsGridStyle} className="mobile-stats-grid">
+                       <div
+                           style={statCardStyle}
+                           onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                           onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                       >
+                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                               <div>
+                                   <p style={{ fontSize: '0.875rem', fontWeight: '500', color: isDarkMode ? '#9ca3af' : '#64748b', margin: '0 0 0.5rem 0' }}>
+                                       Aplikime në pritje
+                                   </p>
+                                   <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#7c3aed', margin: 0 }}>
+                                       {summaryStats.pending}
+                                   </p>
+                               </div>
+                               <div style={{
+                                   width: '48px',
+                                   height: '48px',
+                                   backgroundColor: isDarkMode ? 'rgba(124, 58, 237, 0.2)' : '#f3f4f6',
+                                   borderRadius: '8px',
+                                   display: 'flex',
+                                   alignItems: 'center',
+                                   justifyContent: 'center'
+                               }}>
+                                   <Clock size={24} color="#7c3aed" />
+                               </div>
+                           </div>
+                       </div>
 
-                    <div
-                        style={statCardStyle}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-                    >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div>
-                                <p style={{ fontSize: '0.875rem', fontWeight: '500', color: '#64748b', margin: '0 0 0.5rem 0' }}>
-                                    Rejected
-                                </p>
-                                <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#dc2626', margin: 0 }}>
-                                    {summaryStats.rejected}
-                                </p>
-                            </div>
-                            <div style={{
-                                width: '48px',
-                                height: '48px',
-                                backgroundColor: '#fef2f2',
-                                borderRadius: '8px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}>
-                                <X size={24} color="#dc2626" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                       <div
+                           style={statCardStyle}
+                           onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                           onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                       >
+                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                               <div>
+                                   <p style={{ fontSize: '0.875rem', fontWeight: '500', color: isDarkMode ? '#9ca3af' : '#64748b', margin: '0 0 0.5rem 0' }}>
+                                       Në proces vlerësimi
+                                   </p>
+                                   <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#d97706', margin: 0 }}>
+                                       {summaryStats.inProgress}
+                                   </p>
+                               </div>
+                               <div style={{
+                                   width: '48px',
+                                   height: '48px',
+                                   backgroundColor: isDarkMode ? 'rgba(217, 119, 6, 0.2)' : '#fffbeb',
+                                   borderRadius: '8px',
+                                   display: 'flex',
+                                   alignItems: 'center',
+                                   justifyContent: 'center'
+                               }}>
+                                   <AlertCircle size={24} color="#d97706" />
+                               </div>
+                           </div>
+                       </div>
 
-                {/* Loan Applications Table */}
-                <section style={sectionStyle}>
-                    <div style={sectionHeaderStyle}>
-                        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', margin: 0 }}>
-                            Loan Applications Management
-                        </h3>
-                        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                            {applications.length} total applications
-                        </div>
-                    </div>
+                       <div
+                           style={statCardStyle}
+                           onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                           onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                       >
+                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                               <div>
+                                   <p style={{ fontSize: '0.875rem', fontWeight: '500', color: isDarkMode ? '#9ca3af' : '#64748b', margin: '0 0 0.5rem 0' }}>
+                                       Aprovuar
+                                   </p>
+                                   <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#059669', margin: 0 }}>
+                                       {summaryStats.approved}
+                                   </p>
+                               </div>
+                               <div style={{
+                                   width: '48px',
+                                   height: '48px',
+                                   backgroundColor: isDarkMode ? 'rgba(5, 150, 105, 0.2)' : '#ecfdf5',
+                                   borderRadius: '8px',
+                                   display: 'flex',
+                                   alignItems: 'center',
+                                   justifyContent: 'center'
+                               }}>
+                                   <Check size={24} color="#059669" />
+                               </div>
+                           </div>
+                       </div>
 
-                    {applications.length === 0 ? (
-                        <div style={emptyStateStyle}>
-                            <div style={{
-                                width: '96px',
-                                height: '96px',
-                                backgroundColor: '#f1f5f9',
-                                borderRadius: '50%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                margin: '0 auto 1rem auto'
-                            }}>
-                                <FileText size={48} color="#64748b" />
-                            </div>
-                            <h3 style={{ fontSize: '1.125rem', fontWeight: '500', color: '#1e293b', margin: '0 0 0.5rem 0' }}>
-                                No loan applications found
-                            </h3>
-                            <p style={{ color: '#64748b', margin: 0 }}>
-                                Applications will appear here when submitted by clients
-                            </p>
-                        </div>
-                    ) : (
-                        <>
-                            <div style={{ overflowX: 'auto' }}>
-                                <table style={tableStyle}>
-                                    <thead>
-                                    <tr>
-                                        <th style={thStyle}>Application ID</th>
-                                        <th style={thStyle}>Client Name</th>
-                                        <th style={thStyle}>Amount</th>
-                                        <th style={thStyle}>Duration</th>
-                                        <th style={thStyle}>Type</th>
-                                        <th style={thStyle}>Status</th>
-                                        <th style={thStyle}>Actions</th>
-                                    </tr>
-                                    </thead>
-                                    <tbody>
-                                    {currentApplications.map((app) => (
-                                        <tr
-                                            key={app.id}
-                                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(248, 250, 252, 0.5)'}
-                                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                        >
-                                            <td style={tdStyle}>
-                                                <div style={{ display: 'flex', alignItems: 'center' }}>
-                                                    <div style={{
-                                                        width: '32px',
-                                                        height: '32px',
-                                                        background: 'linear-gradient(135deg, #1e40af 0%, #3730a3 100%)',
-                                                        borderRadius: '8px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        marginRight: '0.75rem',
-                                                        color: 'white',
-                                                        fontSize: '0.875rem',
-                                                        fontWeight: '500'
-                                                    }}>
-                                                        {app.id}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td style={tdStyle}>
-                                                <div style={{ fontWeight: '500', color: '#1e293b' }}>
-                                                    {(app.firstName + " " + app.lastName) || 'N/A'}
-                                                </div>
-                                            </td>
-                                            <td style={tdStyle}>
-                                                <div style={{ fontWeight: '600', color: '#1e293b' }}>
-                                                    {app.requestedAmount} {app.currency || 'EUR'}
-                                                </div>
-                                            </td>
-                                            <td style={tdStyle}>
-                                                <div style={{ display: 'flex', alignItems: 'center', color: '#475569' }}>
-                                                    <Clock size={16} style={{ marginRight: '0.25rem' }} />
-                                                    {app.durationMonths} months
-                                                </div>
-                                            </td>
-                                            <td style={tdStyle}>
-                                                <div style={{ display: 'flex', alignItems: 'center', color: '#475569' }}>
-                                                    {getLoanTypeIcon(app.loanType)}
-                                                    <span style={{ marginLeft: '0.5rem' }}>{app.loanType}</span>
-                                                </div>
-                                            </td>
-                                            <td style={tdStyle}>
-                                    <span style={{
-                                        ...getStatusColor(app.status),
-                                        padding: '0.25rem 0.5rem',
-                                        borderRadius: '9999px',
-                                        fontSize: '0.75rem',
-                                        fontWeight: '500',
-                                        border: '1px solid'
-                                    }}>
-                                        {app.status}
-                                    </span>
-                                            </td>
-                                            <td style={tdStyle}>
-                                                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
-                                                    <button
-                                                        onClick={() => handleViewDetails(app.id)}
-                                                        style={viewButtonStyle}
-                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#dbeafe'}
-                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#eff6ff'}
-                                                    >
-                                                        <Eye size={14} />
-                                                        <span>View</span>
-                                                    </button>
+                       <div
+                           style={statCardStyle}
+                           onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                           onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                       >
+                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                               <div>
+                                   <p style={{ fontSize: '0.875rem', fontWeight: '500', color: isDarkMode ? '#9ca3af' : '#64748b', margin: '0 0 0.5rem 0' }}>
+                                       Refuzuar
+                                   </p>
+                                   <p style={{ fontSize: '2rem', fontWeight: 'bold', color: '#dc2626', margin: 0 }}>
+                                       {summaryStats.rejected}
+                                   </p>
+                               </div>
+                               <div style={{
+                                   width: '48px',
+                                   height: '48px',
+                                   backgroundColor: isDarkMode ? 'rgba(220, 38, 38, 0.2)' : '#fef2f2',
+                                   borderRadius: '8px',
+                                   display: 'flex',
+                                   alignItems: 'center',
+                                   justifyContent: 'center'
+                               }}>
+                                   <X size={24} color="#dc2626" />
+                               </div>
+                           </div>
+                       </div>
+                   </div>
 
-                                                    {app.status?.toLowerCase() === 'applied' && (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handleEvaluate(app.id)}
-                                                                style={evaluateButtonStyle}
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef3c7'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fffbeb'}
-                                                            >
-                                                                <AlertCircle size={14} />
-                                                                <span>Evaluate</span>
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleApprove(app.id)}
-                                                                style={approveButtonStyle}
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d1fae5'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ecfdf5'}
-                                                            >
-                                                                <Check size={14} />
-                                                                <span>Approve</span>
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleReject(app.id)}
-                                                                style={rejectButtonStyle}
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
-                                                            >
-                                                                <X size={14} />
-                                                                <span>Reject</span>
-                                                            </button>
-                                                        </>
-                                                    )}
+                   {/* Loan Applications Table */}
+                   <section style={sectionStyle}>
+                       <div style={sectionHeaderStyle}>
+                           <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: isDarkMode ? '#f9fafb' : '#1e293b', margin: 0 }}>
+                               Menaxhimi i Aplikimeve për Kredi
+                           </h3>
+                           <div style={{ fontSize: '0.875rem', color: isDarkMode ? '#9ca3af' : '#64748b' }}>
+                               {applications.length} aplikime në total
+                           </div>
+                       </div>
 
-                                                    {app.status?.toLowerCase() === 'evaluation' && (
-                                                        <>
-                                                            <button
-                                                                onClick={() => handleApprove(app.id)}
-                                                                style={approveButtonStyle}
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d1fae5'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ecfdf5'}
-                                                            >
-                                                                <Check size={14} />
-                                                                <span>Approve</span>
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleReject(app.id)}
-                                                                style={rejectButtonStyle}
-                                                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                                                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
-                                                            >
-                                                                <X size={14} />
-                                                                <span>Reject</span>
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </>
-                    )}
-                </section>                {/* Footer */}
-                <footer style={footerStyle}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Clock size={16} />
-                        <span>Last login: {user.loginTime}</span>
-                    </div>
-                    <div style={{ color: '#94a3b8' }}>
-                        © 2025 Bank Employee Management System
-                    </div>
-                </footer>
-            </main>
-        </div>
+                       {applications.length === 0 ? (
+                           <div style={emptyStateStyle}>
+                               <div style={{
+                                   width: '96px',
+                                   height: '96px',
+                                   backgroundColor: isDarkMode ? 'rgba(55, 65, 81, 0.5)' : '#f1f5f9',
+                                   borderRadius: '50%',
+                                   display: 'flex',
+                                   alignItems: 'center',
+                                   justifyContent: 'center',
+                                   margin: '0 auto 1rem auto'
+                               }}>
+                                   <FileText size={48} color={isDarkMode ? '#9ca3af' : '#64748b'} />
+                               </div>
+                               <h3 style={{ fontSize: '1.125rem', fontWeight: '500', color: isDarkMode ? '#f9fafb' : '#1e293b', margin: '0 0 0.5rem 0' }}>
+                                   Asnjë aplikim për kredi nuk u gjet
+                               </h3>
+                               <p style={{ color: isDarkMode ? '#9ca3af' : '#64748b', margin: 0 }}>
+                                   Aplikimet do të shfaqen këtu sapo të dorëzohen nga klientët
+                               </p>
+                           </div>
+                       ) : (
+                           <>
+                               <div style={{ overflowX: 'auto' }} className="mobile-table-container">
+                                   <table style={tableStyle}>
+                                       <thead>
+                                       <tr>
+                                           <th style={thStyle}>ID e Aplikimit</th>
+                                           <th style={thStyle}>Emri i Klientit</th>
+                                           <th style={thStyle}>Shuma</th>
+                                           <th style={thStyle}>Kohëzgjatja</th>
+                                           <th style={thStyle}>Lloji</th>
+                                           <th style={thStyle}>Statusi</th>
+                                           <th style={thStyle}>Veprime</th>
+                                       </tr>
+                                       </thead>
+                                       <tbody>
+                                       {currentApplications.map((app) => (
+                                           <tr
+                                               key={app.id}
+                                               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(55, 65, 81, 0.3)' : 'rgba(248, 250, 252, 0.5)'}
+                                               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                           >
+                                               <td style={tdStyle}>
+                                                   <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                       <div style={{
+                                                           width: '32px',
+                                                           height: '32px',
+                                                           background: 'linear-gradient(135deg, #1e40af 0%, #3730a3 100%)',
+                                                           borderRadius: '8px',
+                                                           display: 'flex',
+                                                           alignItems: 'center',
+                                                           justifyContent: 'center',
+                                                           marginRight: '0.75rem',
+                                                           color: 'white',
+                                                           fontSize: '0.875rem',
+                                                           fontWeight: '500'
+                                                       }}>
+                                                           {app.id}
+                                                       </div>
+                                                   </div>
+                                               </td>
+                                               <td style={tdStyle}>
+                                                   <div style={{ fontWeight: '500', color: isDarkMode ? '#f9fafb' : '#1e293b' }}>
+                                                       {(app.firstName + " " + app.lastName) || 'N/A'}
+                                                   </div>
+                                               </td>
+                                               <td style={tdStyle}>
+                                                   <div style={{ fontWeight: '600', color: isDarkMode ? '#f9fafb' : '#1e293b' }}>
+                                                       {app.requestedAmount} {app.currency || 'N/A'}
+                                                   </div>
+                                               </td>
+                                               <td style={tdStyle}>
+                                                   <div style={{ display: 'flex', alignItems: 'center', color: isDarkMode ? '#d1d5db' : '#475569' }}>
+                                                       <Clock size={16} style={{ marginRight: '0.25rem' }} />
+                                                       {app.durationMonths} muaj
+                                                   </div>
+                                               </td>
+                                               <td style={tdStyle}>
+                                                   <div style={{ display: 'flex', alignItems: 'center', color: isDarkMode ? '#d1d5db' : '#475569' }}>
+                                                       {getLoanTypeIcon(app.loanType)}
+                                                       <span style={{ marginLeft: '0.5rem' }}>{app.loanType}</span>
+                                                   </div>
+                                               </td>
+                                               <td style={tdStyle}>
+                                                   <span style={{
+                                                       ...getStatusColor(app.status),
+                                                       padding: '0.25rem 0.5rem',
+                                                       borderRadius: '9999px',
+                                                       fontSize: '0.75rem',
+                                                       fontWeight: '500',
+                                                       border: '1px solid'
+                                                   }}>
+                                                       {app.status}
+                                                   </span>
+                                               </td>
+                                               <td style={tdStyle}>
+                                                   <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                       <button
+                                                           onClick={() => handleViewDetails(app.id)}
+                                                           style={viewButtonStyle}
+                                                           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#dbeafe'}
+                                                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#eff6ff'}
+                                                       >
+                                                           <Eye size={14} />
+                                                           <span>Shiko</span>
+                                                       </button>
+
+                                                       {app.status?.toLowerCase() === 'applied' && (
+                                                           <>
+                                                               <button
+                                                                   onClick={() => handleEvaluate(app.id)}
+                                                                   style={evaluateButtonStyle}
+                                                                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef3c7'}
+                                                                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fffbeb'}
+                                                               >
+                                                                   <AlertCircle size={14} />
+                                                                   <span>Vlerëso</span>
+                                                               </button>
+                                                               <button
+                                                                   onClick={() => handleApprove(app.id)}
+                                                                   style={approveButtonStyle}
+                                                                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d1fae5'}
+                                                                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ecfdf5'}
+                                                               >
+                                                                   <Check size={14} />
+                                                                   <span>Aprovo</span>
+                                                               </button>
+                                                               <button
+                                                                   onClick={() => handleReject(app.id)}
+                                                                   style={rejectButtonStyle}
+                                                                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                                                                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                                                               >
+                                                                   <X size={14} />
+                                                                   <span>Refuzo</span>
+                                                               </button>
+                                                           </>
+                                                       )}
+
+                                                       {app.status?.toLowerCase() === 'evaluation' && (
+                                                           <>
+                                                               <button
+                                                                   onClick={() => handleApprove(app.id)}
+                                                                   style={approveButtonStyle}
+                                                                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#d1fae5'}
+                                                                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ecfdf5'}
+                                                               >
+                                                                   <Check size={14} />
+                                                                   <span>Aprovo</span>
+                                                               </button>
+                                                               <button
+                                                                   onClick={() => handleReject(app.id)}
+                                                                   style={rejectButtonStyle}
+                                                                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                                                                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                                                               >
+                                                                   <X size={14} />
+                                                                   <span>Refuzo</span>
+                                                               </button>
+                                                           </>
+                                                       )}
+                                                   </div>
+                                               </td>
+                                           </tr>
+                                       ))}
+                                       </tbody>
+                                   </table>
+                               </div>
+
+                               {/* Pagination Controls */}
+                               {totalPages > 1 && (
+                                   <div style={paginationStyle}>
+                                       <div style={{ fontSize: '0.875rem', color: isDarkMode ? '#9ca3af' : '#64748b' }}>
+                                           Duke treguar {indexOfFirstApplication + 1}-{Math.min(indexOfLastApplication, applications.length)} nga {applications.length} aplikime
+                                       </div>
+
+                                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                           <button
+                                               onClick={() => handlePageChange(currentPage - 1)}
+                                               disabled={currentPage === 1}
+                                               style={currentPage === 1 ? paginationButtonDisabledStyle : paginationButtonStyle}
+                                               onMouseEnter={(e) => {
+                                                   if (currentPage !== 1) {
+                                                       e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(75, 85, 99, 0.8)' : '#f8fafc';
+                                                   }
+                                               }}
+                                               onMouseLeave={(e) => {
+                                                   if (currentPage !== 1) {
+                                                       e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(55, 65, 81, 0.8)' : 'white';
+                                                   }
+                                               }}
+                                           >
+                                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                   <polyline points="15,18 9,12 15,6"></polyline>
+                                               </svg>
+                                               <span>Para</span>
+                                           </button>
+
+                                           {/* Page Numbers */}
+                                           <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                                                   let pageNum;
+                                                   if (totalPages <= 5) {
+                                                       pageNum = i + 1;
+                                                   } else if (currentPage <= 3) {
+                                                       pageNum = i + 1;
+                                                   } else if (currentPage >= totalPages - 2) {
+                                                       pageNum = totalPages - 4 + i;
+                                                   } else {
+                                                       pageNum = currentPage - 2 + i;
+                                                   }
+
+                                                   const isActive = pageNum === currentPage;
+
+                                                   return (
+                                                       <button
+                                                           key={pageNum}
+                                                           onClick={() => handlePageChange(pageNum)}
+                                                           style={{
+                                                               ...paginationButtonStyle,
+                                                               backgroundColor: isActive ? '#1e40af' : (isDarkMode ? 'rgba(55, 65, 81, 0.8)' : 'white'),
+                                                               color: isActive ? 'white' : (isDarkMode ? '#f9fafb' : '#475569'),
+                                                               borderColor: isActive ? '#1e40af' : (isDarkMode ? 'rgba(75, 85, 99, 0.5)' : '#cbd5e1'),
+                                                               minWidth: '40px',
+                                                               justifyContent: 'center'
+                                                           }}
+                                                           onMouseEnter={(e) => {
+                                                               if (!isActive) {
+                                                                   e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(75, 85, 99, 0.8)' : '#f8fafc';
+                                                               }
+                                                           }}
+                                                           onMouseLeave={(e) => {
+                                                               if (!isActive) {
+                                                                   e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(55, 65, 81, 0.8)' : 'white';
+                                                               }
+                                                           }}
+                                                       >
+                                                           {pageNum}
+                                                       </button>
+                                                   );
+                                               })}
+                                           </div>
+
+                                           <button
+                                               onClick={() => handlePageChange(currentPage + 1)}
+                                               disabled={currentPage === totalPages}
+                                               style={currentPage === totalPages ? paginationButtonDisabledStyle : paginationButtonStyle}
+                                               onMouseEnter={(e) => {
+                                                   if (currentPage !== totalPages) {
+                                                       e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(75, 85, 99, 0.8)' : '#f8fafc';
+                                                   }
+                                               }}
+                                               onMouseLeave={(e) => {
+                                                   if (currentPage !== totalPages) {
+                                                       e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(55, 65, 81, 0.8)' : 'white';
+                                                   }
+                                               }}
+                                           >
+                                               <span>Pas</span>
+                                               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                   <polyline points="9,18 15,12 9,6"></polyline>
+                                               </svg>
+                                           </button>
+                                       </div>
+                                   </div>
+                               )}
+                           </>
+                       )}
+                   </section>
+                   {/* Footer */}
+                   <footer style={footerStyle} className="mobile-footer">
+                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                           <Clock size={16} />
+                           <span>Hyrja e fundit: {user.loginTime}</span>
+                       </div>
+                       <div style={{ color: isDarkMode ? '#6b7280' : '#94a3b8' }}>
+                           © 2025 Sistemi i Menaxhimit të Kredive BKT
+                       </div>
+                   </footer>
+               </main>
+            </div>
+        </>
     );
 }
 
